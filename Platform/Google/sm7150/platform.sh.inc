@@ -11,8 +11,9 @@
 #   a ramdisk must be present (the bootloader ignores its contents)
 #
 # `mkbootimg` zeroes second_addr whenever second_size == 0, so we patch the
-# 4-byte field at offset 28 back to 0x00f00000 afterwards (it is outside the
-# image SHA1 `id` hash).
+# 4-byte field at offset 28 back to 0x00f00000 afterwards.
+# The SHA1 `id` hash at offset 44-63 must then be recomputed because it covers
+# the entire image except the hash itself.
 #
 # Symptom if you get it wrong:
 #   - page_size/header_version != 0/4096  -> "Error verifying the received boot.img: Invalid Parameter"
@@ -43,4 +44,17 @@ function platform_build_bootimg(){
 	# put the second_addr field back, mkbootimg clears it
 	printf '\x00\x00\xf0\x00' | dd of="${OUTDIR}/boot-${DEVICE}${EXT}.img" \
 		bs=1 seek=28 conv=notrunc status=none || return "$?"
+
+	# recompute SHA1 id hash (at offset 44-63) because patching second_addr invalidates it
+	# hash covers entire image EXCEPT the 20 bytes at offset 44-63
+	python3 -c "
+import hashlib
+with open('${OUTDIR}/boot-${DEVICE}${EXT}.img', 'r+b') as f:
+    data = bytearray(f.read())
+    # hash is at offset 44-63 (20 bytes)
+    image_without_hash = data[:44] + data[64:]
+    computed_hash = hashlib.sha1(image_without_hash).digest()
+    f.seek(44)
+    f.write(computed_hash)
+" || return "$?"
 }
