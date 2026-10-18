@@ -1,0 +1,111 @@
+name: Google Pixel 4a (sunfish) - SM7150
+
+# CI for the sunfish port. The firmware itself only boots on a real Pixel 4a,
+# but the tree can still be verified automatically on two levels:
+#
+#   build       - the sunfish image compiles and gets packaged into an
+#                 ABL-compatible (header_version 0) boot image;
+#   qemu-sanity - the sunfishqemu test profile runs under
+#                 qemu-system-aarch64 -M virt (see tools/qemu-sunfish/README.md):
+#                 PEI/DXE must execute and drivers must be dispatched. The run
+#                 is expected to end in a synchronous exception the moment it
+#                 touches SM7150 MMIO that does not exist in QEMU - that is the
+#                 documented, healthy behaviour, so the job gates on the log
+#                 reaching DXE dispatch rather than on "no exception".
+#
+# No wine: this port does not compile ACPI sources (the DSDT.aml is prebuilt
+# and checked in; see tools/qemu-sunfish/README.md and --acpi for the manual
+# path), so the heavy wine/ms asl toolchain that other edk2-msm CIs install is
+# deliberately skipped here.
+
+on:
+  push:
+    branches: [sunfish-sm7150, sunfish-sm7150-ci]
+  pull_request:
+
+concurrency:
+  group: sunfish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Image Build (sunfish)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install build-essential uuid-dev clang llvm iasl nasm \
+            gcc-aarch64-linux-gnu python3-pil python3-git gettext
+
+      - name: Build an image for sunfish
+        run: ./build.sh --device sunfish
+
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sunfish
+          path: |
+            boot-sunfish.img
+            uefi-sunfish-kernel
+            uefi-sunfish.img.gz
+
+  qemu-sanity:
+    name: QEMU Sanity (sunfishqemu -M virt)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install build-essential uuid-dev clang llvm iasl nasm \
+            gcc-aarch64-linux-gnu python3-pil python3-git gettext \
+            qemu-system-arm qemu-utils
+
+      - name: Build the sunfishqemu test profile (DEBUG, PL011 console)
+        run: ./build.sh --device sunfishqemu -r DEBUG --pl011
+
+      - name: Run the firmware under qemu-system-aarch64 -M virt
+        run: |
+          SERIAL="file:${PWD}/serial.log" VERBOSE=1 \
+            tools/qemu-sunfish/run-fd.sh \
+              workspace/Build/sunfishqemu/DEBUG_CLANG38/FV/SM7150_UEFI.fd \
+              qemu-out 3072 90
+          test -s serial.log -a -s qemu-out/serial.txt
+          # the firmware must have reached DXE dispatch
+          grep -q 'Loading driver at 0x' qemu-out/serial.txt
+
+      - name: Upload QEMU logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sunfishqemu-logs
+          path: |
+            serial.log
+            qemu-out/
+
+  dsdt-source:
+    name: DSDT Source Builds with iasl (sunfish)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install iasl
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install acpica-tools
+
+      - name: Compile Platform/Google/sm7150/AcpiTables/sunfish/Dsdt.asl
+        run: |
+          mkdir -p /tmp/dsdt-check
+          cp Platform/Google/sm7150/AcpiTables/sunfish/Dsdt.asl /tmp/dsdt-check/
+          ( cd /tmp/dsdt-check && iasl -ve Dsdt.asl )
+          # 439135 = shipped 439132-byte table + the _HID alias->method wrapper
+          # required by iasl >= 2023 (see the commit that added this source).
+          test "$(stat -c %s /tmp/dsdt-check/Dsdt.aml)" = 439135

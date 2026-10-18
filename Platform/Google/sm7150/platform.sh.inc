@@ -19,6 +19,11 @@
 #   - header_version 2 (or a v2 header claiming a dtb that is not there) -> hangs on the Google logo
 #   - `fastboot erase dtbo` is required, otherwise it also hangs on the logo.
 
+# the ABL requires a non-empty ramdisk section; the stock ramdisk is kept in
+# the tree for that purpose (its contents are never parsed).  Resolve it from
+# ROOTDIR rather than hardcoding a machine-specific absolute path.
+_SUNFISH_RAMDISK="${ROOTDIR}/Platform/Google/sm7150/FdtBlob_compat/sunfish-ramdisk.img"
+
 function platform_build_bootimg(){
 	python3 "${ROOTDIR}/tools/mkbootimg.py" \
 		--kernel "${WORKSPACE}/uefi-${DEVICE}-kernel" \
@@ -39,4 +44,3 @@ function platform_build_bootimg(){
 	printf '\x00\x00\xf0\x00' | dd of="${OUTDIR}/boot-${DEVICE}${EXT}.img" \
 		bs=1 seek=28 conv=notrunc status=none || return "$?"
 }
-export _SUNFISH_RAMDISK='/mnt/btrfs-1t/@home/batya/uefi-sunfish/edk2-msm/Platform/Google/sm7150/FdtBlob_compat/sunfish-ramdisk.img'
