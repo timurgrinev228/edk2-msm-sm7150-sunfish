@@ -34,3 +34,10 @@ FILE FREEFORM = 7E374E25-8E01-4FEE-87F2-390C23C606CD {
 	SECTION RAW = Silicon/Qualcomm/sm7150/AcpiTables/BuiltIn/TPM2.acpi
 	SECTION UI = "AcpiTables"
 }
+
+// UFS: ABL leaves the controller up; register it as a non-discoverable
+// device and let the open EDK2 UFS stack drive it.
+INF Platform/Google/sm7150/Drivers/SunfishUfsDxe/SunfishUfsDxe.inf
+INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
+INF MdeModulePkg/Bus/Pci/UfsPciHcDxe/UfsPciHcDxe.inf
+INF MdeModulePkg/Bus/Ufs/UfsPassThruDxe/UfsPassThruDxe.inf

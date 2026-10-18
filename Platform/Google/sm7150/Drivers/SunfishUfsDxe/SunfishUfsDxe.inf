@@ -1,0 +1,31 @@
+## @file
+#  Registers the Pixel 4a UFS host controller as a non-discoverable UFS device
+#  so the open EDK2 UFS stack (UfsPciHcDxe + UfsPassThruDxe) can drive it.
+#
+#  Copyright (c) 2026, timurgrinev228. All rights reserved.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION    = 0x00010005
+  BASE_NAME      = SunfishUfsDxe
+  FILE_GUID      = 6a1e4c3b-2d7f-4f08-9c5e-81b0a3d4e2f7
+  MODULE_TYPE    = DXE_DRIVER
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = SunfishUfsDxeEntry
+
+[Sources]
+  SunfishUfsDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  IoLib
+  NonDiscoverableDeviceRegistrationLib
+  UefiDriverEntryPoint
+
+[Depex]
+  TRUE
