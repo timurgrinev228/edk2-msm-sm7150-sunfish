@@ -62,6 +62,15 @@
 #define QEMU_HLOS3_LENGTH 0x000C0000ULL
 
 //
+// The shared table gives two different regions the name "HLOS 6" (0x9DC00000
+// and 0x9FFD0000), so the second is unreachable by name.  Renamed here to match
+// what SunfishMemoryMapLib does for the device profile.
+//
+#define QEMU_HLOS6B_BASE  0x9FFD0000ULL
+#define QEMU_HLOS6B_NAME  "HLOS 6b"
+#define QEMU_NAME_LEN     32
+
+//
 // MMIO windows of qemu-system-aarch64 -M virt,gic-version=3:
 //
 //   GICv3 distributor     0x08000000, 64 KiB
@@ -120,6 +129,15 @@ GetPlatformMemoryMap (
         (Sm7150Map[Source].Length != QEMU_HLOS3_LENGTH))
     {
       mQemuVirtMemoryMap[Index].Length = QEMU_HLOS3_LENGTH;
+    }
+
+    //
+    // Disambiguate the second "HLOS 6".
+    //
+    if (mQemuVirtMemoryMap[Index].Address == QEMU_HLOS6B_BASE) {
+      ZeroMem (mQemuVirtMemoryMap[Index].Name, QEMU_NAME_LEN);
+      CopyMem (mQemuVirtMemoryMap[Index].Name, QEMU_HLOS6B_NAME,
+               sizeof (QEMU_HLOS6B_NAME));
     }
 
     End = mQemuVirtMemoryMap[Index].Address + mQemuVirtMemoryMap[Index].Length;
