@@ -31,3 +31,12 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Google"
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Pixel 4a"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"sunfish"
+
+  # ARMv8 Generic Timer uses PPI interrupts (not SPI)
+  # PPI 0: EL2 Virtual Timer (used by UEFI at EL2)
+  # PPI 1: EL2 Hypervisor Timer
+  # PPI 2: EL1 Non-Secure Physical Timer
+  # PPI 3: EL1 Secure Physical Timer
+  gArmTokenSpaceGuid.PcdArmArchTimerSecIntrNum|3
+  gArmTokenSpaceGuid.PcdArmArchTimerIntrNum|2
+  gArmTokenSpaceGuid.PcdArmArchTimerVirtIntrNum|0
