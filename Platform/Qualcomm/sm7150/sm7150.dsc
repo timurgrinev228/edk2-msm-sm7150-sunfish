@@ -45,7 +45,7 @@
   gArmPlatformTokenSpaceGuid.PcdCoreCount|8
   gArmPlatformTokenSpaceGuid.PcdClusterCount|2
 
-  gQcomTokenSpaceGuid.PcdDebugUartPortBase|0xa88000
+  gQcomTokenSpaceGuid.PcdDebugUartPortBase|0x88c000
 
   #
   # SimpleInit
