@@ -25,6 +25,44 @@
 # ROOTDIR rather than hardcoding a machine-specific absolute path.
 _SUNFISH_RAMDISK="${ROOTDIR}/Platform/Google/sm7150/FdtBlob_compat/sunfish-ramdisk.img"
 
+# Google ABL parses the payload as an arm64 Linux Image before booting it.  With
+# the generic BootShim header (text_offset = image_size = flags = 0) it stops
+# with "error boot prepare"; it needs a sane header:
+#
+#   text_offset = 0x80000, image_size = <payload length>, flags = 0xa
+#   (little endian, 4K pages, anywhere in memory)
+#
+# The fields sit at offsets 8/16/24 of BootShim.bin.  They are patched here
+# instead of in BootShim.S, which other devices share.  The appended DTB is
+# sunfish-kernel.dtb, the one the device has been booted with.
+function platform_build_kernel(){
+	local _fv="${WORKSPACE}/Build/${DEVICE}/${_MODE}_${TOOLCHAIN}/FV"
+
+	cat \
+		"${ROOTDIR}/tools/BootShim/BootShim.bin" \
+		"${_fv}/${SOC_PLATFORM}_UEFI.fd" \
+		> "${_fv}/${SOC_PLATFORM}_UEFI.fd-bootshim" \
+		|| return "$?"
+
+	python3 - "${_fv}/${SOC_PLATFORM}_UEFI.fd-bootshim" <<'PY' || return "$?"
+import os, struct, sys
+path = sys.argv[1]
+with open(path, "r+b") as f:
+    f.seek(8)
+    f.write(struct.pack("<QQQ", 0x80000, os.path.getsize(path), 0xa))
+PY
+
+	gzip -9 -c \
+		< "${_fv}/${SOC_PLATFORM}_UEFI.fd-bootshim" \
+		> "${WORKSPACE}/uefi-${DEVICE}.img.gz" \
+		|| return "$?"
+	cat \
+		"${WORKSPACE}/uefi-${DEVICE}.img.gz" \
+		"${ROOTDIR}/Platform/${VENDOR_NAME}/${SOC_PLATFORM_L}/FdtBlob_compat/${PLATFORM_NAME}-kernel.dtb" \
+		> "${WORKSPACE}/uefi-${DEVICE}-kernel" \
+		|| return "$?"
+}
+
 function platform_build_bootimg(){
 	python3 "${ROOTDIR}/tools/mkbootimg.py" \
 		--kernel "${WORKSPACE}/uefi-${DEVICE}-kernel" \
