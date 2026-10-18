@@ -128,7 +128,13 @@
 #define SUNFISH_GPU_MEM_SIZE         0x00002000ULL
 
 #define SUNFISH_CONT_SPLASH_MEM_BASE 0x9C000000ULL
-#define SUNFISH_CONT_SPLASH_MEM_SIZE (1080ULL * 2340ULL * 4ULL)
+/* 1080 * 2340 * 4 = 0x9A3F80, which is not 4 KiB aligned.  ArmMmuLib's
+ * UpdateRegionMapping() rejects any descriptor whose base or length is not
+ * page aligned with EFI_INVALID_PARAMETER, which makes ArmConfigureMmu() fail
+ * with "Failed to enable MMU: Invalid Parameter" and leaves the CPU running on
+ * the identity map set up by the bootloader.  Round the length up to a page;
+ * the extra 128 bytes are still inside the Display Reserved window. */
+#define SUNFISH_CONT_SPLASH_MEM_SIZE ALIGN_VALUE (1080ULL * 2340ULL * 4ULL, 0x1000)
 
 #define SUNFISH_RAMOOPS_MEM_BASE     0xA481F000ULL
 #define SUNFISH_RAMOOPS_MEM_SIZE     0x00400000ULL
@@ -187,11 +193,14 @@
 #define SUNFISH_GPU_MEM2_BASE        0x97715000ULL
 #define SUNFISH_GPU_MEM2_SIZE        0x00002000ULL
 
-#define SUNFISH_QSEECOM_MEM_BASE     0x9E400000ULL
-#define SUNFISH_QSEECOM_MEM_SIZE     0x01400000ULL
-
-#define SUNFISH_SEC_CDSP_MEM_BASE    0x9F800000ULL
-#define SUNFISH_SEC_CDSP_MEM_SIZE    0x01E00000ULL
+//
+// qseecom_region and secure_cdsp_region are not listed: in the sunfish DTS
+// they are reusable shared-dma-pool (CMA) regions with alloc-ranges, so Linux
+// picks their address at runtime.  Reserving the addresses seen on one boot
+// (0x9E400000 / 0x9F800000) made "Secure CDSP" cover the UEFI stack, CPU
+// vectors and page tables (0x9FF00000..0xA0000000) as NS_DEVICE, and the
+// first unaligned store to the stack took an alignment fault (PmicDxe).
+//
 
 #define SUNFISH_DFPS_DATA_MEM_BASE   0x9D700000ULL
 #define SUNFISH_DFPS_DATA_MEM_SIZE   0x00100000ULL
@@ -565,12 +574,6 @@ GetPlatformMemoryMap (
   SunfishAddReservedRegion (mSunfishMemoryMap, &OutIndex,
                             SUNFISH_GPU_MEM2_BASE, SUNFISH_GPU_MEM2_SIZE,
                             "GPU 2");
-  SunfishAddReservedRegion (mSunfishMemoryMap, &OutIndex,
-                            SUNFISH_QSEECOM_MEM_BASE, SUNFISH_QSEECOM_MEM_SIZE,
-                            "QSEECOM");
-  SunfishAddReservedRegion (mSunfishMemoryMap, &OutIndex,
-                            SUNFISH_SEC_CDSP_MEM_BASE, SUNFISH_SEC_CDSP_MEM_SIZE,
-                            "Secure CDSP");
   SunfishAddReservedRegion (mSunfishMemoryMap, &OutIndex,
                             SUNFISH_DFPS_DATA_MEM_BASE, SUNFISH_DFPS_DATA_MEM_SIZE,
                             "DFPS Data");
