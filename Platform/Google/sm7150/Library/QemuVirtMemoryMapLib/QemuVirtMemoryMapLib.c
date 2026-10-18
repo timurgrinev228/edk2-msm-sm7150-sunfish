@@ -51,6 +51,17 @@
 #define QEMU_VIRT_RAM_END  0x100000000ULL
 
 //
+// This library takes the shared SM7150 table as-is, so it does not get the
+// corrections SunfishMemoryMapLib applies to it.  The one that matters here is
+// HLOS 3, which the table gives a length of 0x000E0000 and therefore runs
+// 128 KiB into SMEM (0x86000000..0x86200000, the secure partition - both the
+// stock and the Mobian device trees put it exactly there).  A QEMU boot log
+// shows it plainly as "Memory Allocation 0x00000007 0x85F40000 - 0x8601FFFF".
+//
+#define QEMU_HLOS3_BASE   0x85F40000ULL
+#define QEMU_HLOS3_LENGTH 0x000C0000ULL
+
+//
 // MMIO windows of qemu-system-aarch64 -M virt,gic-version=3:
 //
 //   GICv3 distributor     0x08000000, 64 KiB
@@ -102,7 +113,16 @@ GetPlatformMemoryMap (
 
     mQemuVirtMemoryMap[Index] = Sm7150Map[Source];
 
-    End = Sm7150Map[Source].Address + Sm7150Map[Source].Length;
+    //
+    // Trim HLOS 3 to end where the secure partition begins.
+    //
+    if ((Sm7150Map[Source].Address == QEMU_HLOS3_BASE) &&
+        (Sm7150Map[Source].Length != QEMU_HLOS3_LENGTH))
+    {
+      mQemuVirtMemoryMap[Index].Length = QEMU_HLOS3_LENGTH;
+    }
+
+    End = mQemuVirtMemoryMap[Index].Address + mQemuVirtMemoryMap[Index].Length;
     if (End > QEMU_VIRT_RAM_END) {
       mQemuVirtMemoryMap[Index].Length = QEMU_VIRT_RAM_END - Sm7150Map[Source].Address;
     }
