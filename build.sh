@@ -97,7 +97,9 @@ function _build(){
 			fi
 			cp "${ROOTDIR}/Platform/${VENDOR_NAME}/${SOC_PLATFORM_L}/AcpiTables/${DEVICE}/"* ./
 			if [ "${USE_IASL}" == "true" ]
-			then iasl -ve Dsdt.asl ||_error "iasl failed"
+			# -p DSDT: iasl otherwise names the output after the input (Dsdt.aml),
+			# which the copy below does not look for.
+			then iasl -ve -p DSDT Dsdt.asl ||_error "iasl failed"
 			else wine "${ROOTDIR}/tools/asl-x64.exe" Dsdt.asl ||_error "asl.exe failed"
 			fi
 			test -e DSDT.aml && cp DSDT.aml "${ROOTDIR}/Platform/${VENDOR_NAME}/${SOC_PLATFORM_L}/AcpiTables/${DEVICE}/DSDT.aml"

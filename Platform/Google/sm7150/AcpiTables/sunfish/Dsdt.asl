@@ -37,8 +37,33 @@
  * This is behaviour-preserving (URSI() is still evaluated at _HID query time,
  * yielding QCOM0497/QCOM0498 based on QUFN) and lets the table compile with
  * iasl 20250404. The rebuilt AML is 439135 bytes vs the original 439132 -- the
- * +3 bytes are just the method wrapper in place of the alias reference; every
- * other opcode is unchanged.
+ * +3 bytes are just the method wrapper in place of the alias reference. Note
+ * that the two images are not byte-identical even outside that method: iasl
+ * reorders the internal name/string table when it re-encodes the namespace.
+ * Disassembling the rebuild and diffing it against this source shows no other
+ * change.
+ *
+ * SUNFISH-SPECIFIC CHANGE: TOUCHSCREEN
+ * ------------------------------------
+ * The reference table describes the touch controller of the Xiaomi surya:
+ *
+ *     Device (TSC1), HID-over-I2C, I2cSerialBusV2 (0x20, 400 kHz) on \_SB.IC15
+ *     GpioInt (Edge, ActiveLow, ...) pin 122, GpioIo reset pin 54
+ *
+ * The Pixel 4a wires its ST controller differently. Per the mainline device
+ * tree (arch/arm64/boot/dts/qcom/sm7150-google-sunfish.dts, node
+ * "touchscreen@49", compatible "st,stmfts5"):
+ *
+ *     bus          i2c7, 1 MHz                (reg 0xa84000 == ACPI IC10)
+ *     address      0x49
+ *     interrupt    TLMM GPIO 9, level, active low
+ *     reset        TLMM GPIO 8, active low
+ *     panel        1080 x 2340 (descriptor comes from the controller itself)
+ *
+ * TSC1 is therefore moved to IC10 @ 0x49 / 1 MHz with a level-low interrupt on
+ * pin 9 and the reset line on pin 8. The HID (MSHW1003, HID-over-I2C) is
+ * unchanged: Windows binds hidi2c to it and reads the HID report descriptor
+ * from the ST controller, so the panel geometry is not described here.
  *
  * SPDX-License-Identifier: BSD-2-Clause-Patent
  */
