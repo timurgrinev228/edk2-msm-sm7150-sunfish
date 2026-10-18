@@ -55,8 +55,8 @@
 #include <Library/PlatformMemoryMapLib.h>
 
 //
-// Pull in the shared SM7150 table under a different name, exactly like
-// QemuVirtMemoryMapLib does, so both views can coexist in one binary.
+// Pull in the shared SM7150 table under a different name so this library
+// can wrap it and still pick up SoC-level changes.
 //
 #define GetPlatformMemoryMap  GetSm7150PlatformMemoryMap
 #include "../../../../../Silicon/Qualcomm/sm7150/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c"

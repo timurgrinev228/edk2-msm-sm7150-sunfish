@@ -15,6 +15,3 @@ ramdisk
 *.orig
 *.fd
 
-# QEMU test artifacts
-tools/qemu-sunfish/qemu-test/
-tools/qemu-sunfish/serial.log

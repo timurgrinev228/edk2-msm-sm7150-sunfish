@@ -1,4 +1,4 @@
-# Platform/Google/sm7150 - Google Pixel 4a (sunfish) + QEMU test profile
+# Platform/Google/sm7150 - Google Pixel 4a (sunfish)
 
 Package for the Google Pixel 4a 4G (codename `sunfish`, "GAHOU"/LAZER family,
 Snapdragon 730G / SM7150 - the same SoC as Xiaomi davinci/surya and Sony a71).
@@ -14,12 +14,10 @@ is shared with those devices; everything here is the device-specific layer.
 | `platform.sh.inc` | boot image packaging hook (Google ABL shape, see below) |
 | `Library/SunfishMemoryMapLib/` | sunfish DDR map. `#include`s the shared `Silicon/Qualcomm/sm7150` table and fixes the two defects that matter for this device (HLOS 3 used to overlap SMEM by 128 KiB; duplicate "HLOS 6" name), keeping upstream changes propagating |
 | `Library/SunfishSmbiosInfoLib/` | SMBIOS strings (Google / Pixel 4a / sunfish) |
-| `Library/QemuVirtMemoryMapLib/` | variant for the `sunfishqemu` test profile: appends QEMU `-M virt` MMIO windows (GIC, PL011) on top of the sunfish map and trims DDR to what QEMU provides |
 | `AcpiTables/sunfish/DSDT.aml` | ACPI DSDT used by the port (the shared SM7150 reference table; see `Dsdt.asl` below) |
 | `AcpiTables/sunfish/Dsdt.asl` | rebuildable source of that table, iasl-verified (compiles to the same table with iasl 20250404; the URS0 `_HID` alias became a method because iasl >= 2023 rejects aliases for `_HID`) |
 | `FdtBlob_compat/sunfish.dtb` | vendor DTB from the stock factory boot image (`qcom,sdmmagpie`) |
 | `FdtBlob_compat/sunfish-ramdisk.img` | stock ramdisk, kept because the ABL requires a non-empty ramdisk section (contents are never parsed) |
-| `sunfishqemu.dsc` + `configs/devices/sunfishqemu.conf` | test profile: same firmware with GIC/arch-timer/UART PCDs pointed at `qemu-system-aarch64 -M virt` addresses so the image can be exercised under QEMU (see `tools/qemu-sunfish/README.md`) |
 
 ## Boot image: what the Pixel 4a ABL accepts
 
@@ -30,7 +28,7 @@ The only image that boots is (`platform_build_bootimg` in `platform.sh.inc`):
 header_version 0          page_size 4096
 kernel   @ 0x00008000     ramdisk @ 0x01000000
 second   @ 0x00f00000     tags    @ 0x00000100
-kernel   = gzip(BootShim.bin + SM7150_UEFI.fd) ++ sunfish.dtb
+kernel   = gzip(BootShim.bin + SM7150_UEFI.fd) ++ sunfish-kernel.dtb
 ramdisk  = stock ramdisk blob (required, contents ignored)
 ```
 
@@ -44,8 +42,12 @@ Notes:
   image accepted: wrong shape -> `Error verifying the received boot.img:
   Invalid Parameter`; a v2 header (even a copy of the stock one) without the
   matching payload hangs on the Google logo.
-* `fastboot erase dtbo` is required before `fastboot boot`ing, otherwise the
-  boot hangs on the logo as well.
+* ABL parses the payload as an arm64 Image: with the generic BootShim header
+  (text_offset = image_size = flags = 0) it stops with `error boot prepare`.
+  `platform_build_kernel` patches text_offset 0x80000, image_size and
+  flags 0xa into the payload.
+* UFSDxe resets the phone on sunfish and is left out (`DISABLE_UFS` in
+  `sunfish.dsc`), so UEFI has no internal storage yet.
 
 Build:
 
@@ -53,9 +55,13 @@ Build:
 ./build.sh --device sunfish        # -> ./boot-sunfish.img
 ```
 
-To test without touching anything permanent, `fastboot boot boot-sunfish.img`
-loads it into RAM only; erase `dtbo` first if the boot hangs on the logo, and
-flash the stock `boot`/`dtbo` back to return to Android.
+`fastboot boot` (RAM only) does not work for unsigned images on the
+Pixel 4a, so the image is flashed; keep the stock `boot.img` to go back:
+
+```sh
+fastboot flash boot_a boot-sunfish.img && fastboot --set-active=a && fastboot reboot
+fastboot flash boot_a <stock boot.img> && fastboot reboot   # back to Android
+```
 
 ## Library rewrite policy (davinci -> sunfish)
 
