@@ -69569,27 +69569,27 @@ DefinitionBlock ("", "DSDT", 2, "QCOMM ", "SDM8180 ", 0x00000003)
             {
                 PEP0, 
                 GIO0, 
-                IC15
+                IC10
             })
             Method (_CRS, 0, NotSerialized)  // _CRS: Current Resource Settings
             {
                 Name (RBUF, ResourceTemplate ()
                 {
-                    I2cSerialBusV2 (0x0020, ControllerInitiated, 0x00061A80,
-                        AddressingMode7Bit, "\\_SB.IC15",
+                    I2cSerialBusV2 (0x0049, ControllerInitiated, 0x000F4240,
+                        AddressingMode7Bit, "\\_SB.IC10",
                         0x00, ResourceConsumer, , Exclusive,
                         )
-                    GpioInt (Edge, ActiveLow, ExclusiveAndWake, PullUp, 0x0000,
+                    GpioInt (Level, ActiveLow, ExclusiveAndWake, PullUp, 0x0000,
                         "\\_SB.GIO0", 0x00, ResourceConsumer, ,
                         )
                         {   // Pin list
-                            0x007A
+                            0x0009
                         }
                     GpioIo (Exclusive, PullNone, 0x0000, 0x0000, IoRestrictionNone,
                         "\\_SB.GIO0", 0x00, ResourceConsumer, ,
                         )
                         {   // Pin list
-                            0x0036
+                            0x0008
                         }
                 })
                 Return (RBUF) /* \_SB_.TSC1._CRS.RBUF */
