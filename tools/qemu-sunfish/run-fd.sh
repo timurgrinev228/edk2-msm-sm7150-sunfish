@@ -1,14 +1,32 @@
 #!/bin/bash
-# Boot a built SM7150 UEFI FD inside qemu-system-aarch64 -M virt and dump the
-# framebuffer (where this platform renders its DEBUG output).
+# Boot a built SM7150 UEFI FD inside qemu-system-aarch64 -M virt and collect the
+# firmware's output.
 #
 # usage: run-fd.sh <SM7150_UEFI.fd> [outdir] [ram_mb] [wait_seconds] [fd_base]
+#
+# environment:
+#   SERIAL   QEMU's -serial value (default "null").  The sunfishqemu profile is
+#            built with --pl011, so
+#              SERIAL=file:serial.log ./run-fd.sh <fd>
+#            yields a plain-text DEBUG log (PrePi, DXE and the exception dump).
+#            Without it the device profile's framebuffer text is decoded
+#            instead.
+#   TRACE    1 = also log every exception to $OUT/int.log (`-d int`).  Very
+#            verbose: an IRQ storm can produce gigabytes in seconds, so it is
+#            off by default.
+#   GUESTLOG 0 = do not write $OUT/qemu.log (`-d guest_errors,unimp`).
+#   VERBOSE  1 = print the whole log, not just the tail.
+#   FONT5X12 path to the 5x12 font used by the framebuffer decoder.
 set -eu
 FD=${1:?usage: run-fd.sh <SM7150_UEFI.fd> [outdir] [ram_mb] [wait_s] [fd_base]}
 OUT=${2:-./qemu-out}
 RAM=${3:-3072}
 WAIT=${4:-30}
 FDBASE=${5:-0xCE000000}
+SERIAL=${SERIAL:-null}
+TRACE=${TRACE:-0}
+GUESTLOG=${GUESTLOG:-1}
+VERBOSE=${VERBOSE:-0}
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 command -v qemu-system-aarch64 >/dev/null || { echo "qemu-system-aarch64 not found"; exit 1; }
@@ -26,6 +44,13 @@ blob = struct.pack('<II', movz, br)
 blob += b'\x00' * (4096 - len(blob))
 sys.stdout.buffer.write(blob)
 PY
+
+QEMU_EXTRA=()
+if [ "$TRACE" = "1" ]; then
+  QEMU_EXTRA+=(-d int -D "$OUT/int.log")
+elif [ "$GUESTLOG" = "1" ]; then
+  QEMU_EXTRA+=(-d guest_errors,unimp -D "$OUT/qemu.log")
+fi
 
 MON="/tmp/qemu-fd-mon-$$.sock"
 cat > /tmp/qemu-fd-client-$$.py <<'PY'
@@ -65,17 +90,50 @@ qemu-system-aarch64 \
   -bios "$OUT/stub.bin" \
   -device loader,file="$FD",addr="$FDBASE",force-raw=on \
   -monitor "unix:$MON,server,nowait" \
-  -no-reboot -no-shutdown -serial null \
-  -d int -D "$OUT/int.log" &
+  -no-reboot -no-shutdown -serial "$SERIAL" \
+  "${QEMU_EXTRA[@]}" &
 QPID=$!
 python3 /tmp/qemu-fd-client-$$.py "$MON" "$OUT" "$WAIT" || true
 wait $QPID 2>/dev/null || true
 rm -f "$MON" /tmp/qemu-fd-client-$$.py
 
 grep -a -E 'PC=' "$OUT/registers.txt" | head -1 || true
-[ -f "$OUT/fb.bin" ] || { echo "no framebuffer dump produced"; exit 1; }
+
+SERIAL_HAS_OUTPUT=0
+case "$SERIAL" in
+  file:*) SFILE=${SERIAL#file:}
+          if [ -s "$SFILE" ]; then
+            tr -d '\r' < "$SFILE" | sed 's/\x1b\[[0-9;]*m//g' > "$OUT/serial.txt"
+            SERIAL_HAS_OUTPUT=1
+            echo "serial log: $OUT/serial.txt ($(wc -l < "$OUT/serial.txt") lines)"
+            echo "--- last 15 lines ---"
+            tail -n 15 "$OUT/serial.txt"
+            echo "--- last drivers loaded ---"
+            grep -o 'Loading driver at 0x[0-9A-F]* EntryPoint=0x[0-9A-F]* [A-Za-z0-9_.-]*' \
+              "$OUT/serial.txt" | tail -5 || true
+            echo "--- exception / assert lines ---"
+            grep -n -i 'Synchronous Exception\|ASSERT\|Data Abort\|^ERROR' "$OUT/serial.txt" \
+              | tail -8 || true
+            if [ "$VERBOSE" = "1" ]; then
+              echo "--- full log ---"
+              cat "$OUT/serial.txt"
+            fi
+          else
+            echo "serial log: empty (no output reached the PL011)"
+          fi ;;
+esac
+
+[ -f "$OUT/qemu.log" ] && [ -s "$OUT/qemu.log" ] && \
+  echo "qemu device log: $OUT/qemu.log ($(wc -l < "$OUT/qemu.log") lines)"
+
+[ -f "$OUT/fb.bin" ] || { echo "no framebuffer dump produced"; exit 0; }
+
+if [ "$SERIAL_HAS_OUTPUT" = "1" ]; then
+  echo "framebuffer dump kept at $OUT/fb.bin (console is on the PL011)"
+  exit 0
+fi
 
 FONT="${FONT5X12:-$(cd "$HERE/../.." && pwd)/Silicon/Qualcomm/QcomPkg/Include/Resources/font5x12.h}"
 python3 "$HERE/decode-fb.py" "$OUT/fb.bin" "$FONT" > "$OUT/fb.txt"
-echo "decoded log: $OUT/fb.txt"
-cat "$OUT/fb.txt"
+echo "decoded framebuffer log: $OUT/fb.txt ($(grep -c . "$OUT/fb.txt") non-empty lines)"
+if [ "$VERBOSE" = "1" ]; then cat "$OUT/fb.txt"; else tail -n 40 "$OUT/fb.txt"; fi

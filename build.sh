@@ -12,6 +12,7 @@ function _help(){
 	echo "	--release MODE, -r MODE: Release mode for building, default is 'RELEASE', 'DEBUG' alternatively."
 	echo "	--toolchain TOOLCHAIN:   Set toolchain, default is 'CLANG38'."
 	echo "	--uart, -u:              compile with UART support, print debug messages to uart debug port."
+	echo "	--pl011, -p:             use a generic ARM PL011 console (USE_UART=2), e.g. under QEMU."
 	echo " 	--skip-rootfs-gen:       skip generating SimpleInit rootfs to speed up building."
 	echo " 	--no-exception-disp:     do not display exception information in DEBUG builds."
 	echo "	--acpi, -A:              compile DSDT using MS asl with wine."
@@ -181,7 +182,7 @@ export GEN_ACPI=false
 export GEN_ROOTFS=true
 export GEN_INSTALLER_ZIP=false
 export FASTBOOT=false
-OPTS="$(getopt -o t:d:hfabczACDO:r:u -l toolchain:,device:,help,fixclang,all,boot,chinese,acpi,skip-rootfs-gen,no-exception-disp,installer-zip,uart,clean,distclean,outputdir:,release: -n 'build.sh' -- "$@")"||exit 1
+OPTS="$(getopt -o t:d:hfabczACDO:r:up -l toolchain:,device:,help,fixclang,all,boot,chinese,acpi,skip-rootfs-gen,no-exception-disp,installer-zip,uart,pl011,clean,distclean,outputdir:,release: -n 'build.sh' -- "$@")"||exit 1
 eval set -- "${OPTS}"
 while true
 do	case "${1}" in
@@ -198,6 +199,7 @@ do	case "${1}" in
 		-r|--release) MODE="${2}";shift 2;;
 		-t|--toolchain) TOOLCHAIN="${2}";shift 2;;
 		-u|--uart) USE_UART=1;shift;;
+		-p|--pl011) USE_UART=2;shift;;
 		-f|--fixclang) FIX_CLANG=1;shift;;
 		-z|--installer-zip) GEN_INSTALLER_ZIP=true;ENABLE_LINUX_UTILS=1;shift;;
 		-h|--help) _help 0;shift;;

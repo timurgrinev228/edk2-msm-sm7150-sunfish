@@ -257,6 +257,15 @@
   
 !if $(USE_UART) == 1
   SerialPortLib|Silicon/Qualcomm/QcomPkg/Library/QcomGeniSerialPortLib/QcomGeniSerialPortLib.inf
+!elseif $(USE_UART) == 2
+  #
+  # Generic ARM PL011 console: used when the firmware runs under emulation
+  # (tools/qemu-sunfish) instead of on the device.  The base address comes
+  # from gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase.
+  #
+  SerialPortLib|ArmPlatformPkg/Library/PL011SerialPortLib/PL011SerialPortLib.inf
+  PL011UartLib|ArmPlatformPkg/Library/PL011UartLib/PL011UartLib.inf
+  PL011UartClockLib|ArmPlatformPkg/Library/PL011UartClockLib/PL011UartClockLib.inf
 !else
   SerialPortLib|Silicon/Qualcomm/QcomPkg/Library/FrameBufferSerialPortLib/FrameBufferSerialPortLib.inf
 !endif
@@ -351,6 +360,8 @@
     <LibraryClasses>
     !if $(USE_UART) == 1
       SerialPortLib|Silicon/Qualcomm/QcomPkg/Library/QcomGeniSerialPortLib/QcomGeniSerialPortLib.inf
+    !elseif $(USE_UART) == 2
+      SerialPortLib|ArmPlatformPkg/Library/PL011SerialPortLib/PL011SerialPortLib.inf
     !else
       SerialPortLib|Silicon/Qualcomm/QcomPkg/Library/FrameBufferSerialPortLib/FrameBufferSerialPortLib.inf
     !endif
@@ -376,6 +387,8 @@
     <LibraryClasses>
     !if $(USE_UART) == 1
       SerialPortLib|Silicon/Qualcomm/QcomPkg/Library/QcomGeniSerialPortLib/QcomGeniSerialPortLib.inf
+    !elseif $(USE_UART) == 2
+      SerialPortLib|ArmPlatformPkg/Library/PL011SerialPortLib/PL011SerialPortLib.inf
     !else
     !if $(NO_EXCEPTION_DISPLAY) == TRUE
       SerialPortLib|Common/edk2/MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
