@@ -123,8 +123,10 @@ function _build(){
 	popd
 
 	_call_hook platform_pre_build||return "$?"
-	mkdir -p "${ROOTDIR}/Common/edk2/Conf"
+	mkdir -p "${ROOTDIR}/Common/edk2/Conf" "${WORKSPACE}/Conf"
 	cp "${ROOTDIR}/tools/"{build_rule.txt,tools_def.txt} "${ROOTDIR}/Common/edk2/Conf/"
+	cp "${ROOTDIR}/tools/"{build_rule.txt,tools_def.txt} "${WORKSPACE}/Conf/"
+	cp "${ROOTDIR}/tools/"{build_rule.txt,tools_def.txt} "${WORKSPACE}/"
 	build \
 		-s \
 		-n 0 \
@@ -160,7 +162,52 @@ function _build(){
 
 function _clean(){ rm --one-file-system --recursive --force "${WORKSPACE}"./workspace "${OUTDIR}"/boot-*.img "${OUTDIR}"/uefi-installer-*.zip "${OUTDIR}"/uefi-*.img*; }
 
-function _distclean(){ if [ -d .git ];then git clean -xdf;else _clean;fi; }
+#
+# Submodules are declared with gitlink entries, so "git clean -xdf" only leaves
+# them alone while they are real git repositories.  One that was never
+# initialised has no gitdir of its own, git then sees its worktree as
+# untracked content, and the clean deletes it wholesale - which took
+# Common/edk2 (500+ MB, 38961 files) out of this tree once already.
+#
+# Resolve the gitdir instead of just testing for a .git entry: here the file
+# exists but points at .git/modules/<name>, which is exactly the state that
+# made the clean destructive.
+#
+function _submodules_ready(){
+	local d dotgit target
+	for d in Common/edk2 Common/edk2-platforms GPLDrivers/Library/SimpleInit tools/Installer; do
+		[[ -d "${ROOTDIR:?}/${d}" ]] || continue
+		dotgit="${ROOTDIR}/${d}/.git"
+		# a directory means a standalone repository - git will not touch it
+		[[ -d "${dotgit}" ]] && continue
+		if [[ -f "${dotgit}" ]]; then
+			target="$(sed -n 's|^gitdir: *||p' "${dotgit}" | head -1)"
+			if [[ "${target}" = /* ]]; then
+				[[ -d "${target}" ]] && continue
+			else
+				( cd "${ROOTDIR}/${d}" && [[ -n "${target}" && -d "${target}" ]] ) && continue
+			fi
+		fi
+		echo "  ${d}: gitdir $( [[ -f "${dotgit}" ]] && echo "-> ${target:-<empty>}" || echo "<missing>" ) does not exist"
+		return 1
+	done
+	return 0
+}
+
+function _distclean(){
+	if [ -d .git ];then
+		if ! _submodules_ready;then
+			_error "Refusing to run 'git clean -xdf': the submodules are not initialised.
+Their worktrees have no reachable gitdir, so git treats them as untracked and
+the clean would delete them along with the build tree.
+Initialise them (git submodule update --init, or copy from a known-good tree)
+and run this again."
+		fi
+		git clean -xdf
+	else
+		_clean
+	fi
+}
 
 OUTDIR="${PWD}"
 ROOTDIR="$(realpath "$(dirname "$0")")"

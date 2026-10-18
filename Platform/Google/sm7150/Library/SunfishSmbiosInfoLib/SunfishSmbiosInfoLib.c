@@ -10,6 +10,14 @@
 
 **/
 
+//
+// Uefi.h has to come first: this edk2 moved EFI_GUID, EFI_STATUS and
+// EFI_HANDLE out of Base.h into Uefi/UefiBaseTypes.h, and Protocol/Smbios.h
+// does not include them itself.  Without this the file fails with
+// "unknown type name 'EFI_GUID'" followed by a cascade of
+// "function cannot return function type 'EFI_STATUS'".
+//
+#include <Uefi.h>
 #include <Base.h>
 #include <Guid/SmBios.h>
 #include <IndustryStandard/SmBios.h>

@@ -15,7 +15,7 @@
   INF_VERSION                    = 0x00010005
   BASE_NAME                      = SunfishSmbiosInfoLib
   FILE_GUID                      = 8d2f5b03-6e49-4c17-a038-4f9b2c7d5e61
-  MODULE_TYPE                    = BASE
+  MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = SOCSmbiosInfoLib
 
@@ -23,8 +23,12 @@
   SunfishSmbiosInfoLib.c
 
 [Packages]
+  ArmPkg/ArmPkg.dec
   MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
   Silicon/Qualcomm/QcomPkg/QcomPkg.dec
+  Silicon/Qualcomm/sm7150/sm7150.dec
 
 [LibraryClasses]
   BaseLib

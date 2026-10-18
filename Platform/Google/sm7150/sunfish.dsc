@@ -14,6 +14,7 @@
 !include Platform/Qualcomm/sm7150/sm7150.dsc
 
 [LibraryClasses.common]
+  # Sunfish-specific SoC library variants (Platform/Google/sm7150/Library/)
   PlatformMemoryMapLib|Platform/Google/sm7150/Library/SunfishMemoryMapLib/SunfishMemoryMapLib.inf
   SOCSmbiosInfoLib|Platform/Google/sm7150/Library/SunfishSmbiosInfoLib/SunfishSmbiosInfoLib.inf
 
