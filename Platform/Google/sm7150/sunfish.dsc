@@ -10,6 +10,8 @@
   SKUID_IDENTIFIER               = DEFAULT
   FLASH_DEFINITION               = Platform/Qualcomm/sm7150/sm7150.fdf
   DEVICE_DXE_FV_COMPONENTS       = Platform/Google/sm7150/sunfish.fdf.inc
+  # UFSDxe (shared sm7150 blob) resets the device on sunfish; skip it for now
+  DEFINE DISABLE_UFS             = TRUE
 
 !include Platform/Qualcomm/sm7150/sm7150.dsc
 

@@ -100,11 +100,13 @@ APRIORI DXE {
   INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
   INF MdeModulePkg/Universal/FvSimpleFileSystemDxe/FvSimpleFileSystemDxe.inf
 
+!ifndef $(DISABLE_UFS)
   FILE DRIVER = 0d35cd8e-97ea-4f9a-96af-0f0d89f76567 {
     SECTION DXE_DEPEX = Platform/EFI_Binaries/Drivers/sm7150/UFSDxe/UFSDxe.depex
     SECTION PE32 = Platform/EFI_Binaries/Drivers/sm7150/UFSDxe/UFSDxe.efi
     SECTION UI = "UFSDxe"
   }
+!endif
 
   FILE DRIVER = 6925fad3-e243-4b69-ad61-3f978c8abc60 {
     SECTION DXE_DEPEX = Platform/EFI_Binaries/Drivers/sm7150/TzDxe/TzDxe.depex
