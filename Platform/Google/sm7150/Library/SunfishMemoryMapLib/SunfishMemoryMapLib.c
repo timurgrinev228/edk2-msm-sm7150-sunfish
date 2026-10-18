@@ -197,6 +197,7 @@
 #define SUNFISH_DFPS_DATA_MEM_SIZE   0x00100000ULL
 
 STATIC ARM_MEMORY_REGION_DESCRIPTOR_EX  mSunfishMemoryMap[MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT];
+STATIC ARM_MEMORY_REGION_DESCRIPTOR_EX  mResolvedMemoryMap[MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT];
 
 /**
   Copy a region name without tripping over the fixed 32-byte field.
@@ -296,6 +297,123 @@ SunfishAddDeviceRegion (
 
   @return Terminator-counted descriptor table (never NULL).
 **/
+/**
+  Make the descriptor list non-overlapping where it affects allocation.
+
+  Two problems are fixed:
+
+  1. Duplicate entries.  Several of the sunfish regions describe the very same
+     range that the shared SM7150 table already carries (SMEM, Hypervisor,
+     AOP Cmd DB, TrustZone, the two GIC windows).  Each one would emit a second
+     descriptor for the same physical range.
+
+  2. Memory that is both free and reserved.  Adding a reserved descriptor does
+     not take memory away from the allocatable descriptor covering it, so a
+     range like HLOS 5 (0x97600000..0x9C000000, EfiConventionalMemory) was
+     reported as allocatable even with ADSP, WLAN MSA, NPU, IPA and GPU sitting
+     inside it.  The reserved ranges are carved out here, splitting the
+     allocatable region into the pieces that remain.
+
+  Device windows and reserved-against-reserved overlaps are deliberately left
+  alone: none of them is handed to the allocator, so the overlap only costs a
+  duplicate mapping that the MMU creates identically either way.  That also
+  keeps the table well inside MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT, which the
+  splitting would otherwise eat into.
+
+  @param[in]   Map    Descriptor list to reduce, OutIndex entries long.
+  @param[out]  Count  Number of descriptors written to mResolvedMemoryMap.
+**/
+STATIC
+VOID
+SunfishResolveOverlaps (
+  IN CONST ARM_MEMORY_REGION_DESCRIPTOR_EX  *Map,
+  IN OUT UINTN                               *Count
+  )
+{
+  UINTN                            Read;
+  UINTN                            Write;
+  UINTN                            Check;
+  UINTN                            Cut;
+  UINT64                           Cursor;
+  UINT64                           RangeBase;
+  UINT64                           RangeEnd;
+  ARM_MEMORY_REGION_DESCRIPTOR_EX  Region;
+
+  Write = 0;
+
+  for (Read = 0; Read < *Count; Read++) {
+    if (Map[Read].Length == 0) {
+      break;
+    }
+
+    //
+    // Drop an entry another one already describes exactly.
+    //
+    for (Check = 0; Check < Write; Check++) {
+      if ((mResolvedMemoryMap[Check].Address == Map[Read].Address) &&
+          (mResolvedMemoryMap[Check].Length == Map[Read].Length))
+      {
+        break;
+      }
+    }
+
+    if (Check < Write) {
+      continue;
+    }
+
+    if (Write >= MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT - 1) {
+      break;
+    }
+
+    //
+    // Only allocatable memory is carved up.
+    //
+    if ((Map[Read].HobOption != AddMem) || (Map[Read].ResourceType != SYS_MEM)) {
+      mResolvedMemoryMap[Write++] = Map[Read];
+      continue;
+    }
+
+    Region      = Map[Read];
+    RangeBase   = Map[Read].Address;
+    RangeEnd    = Map[Read].Address + Map[Read].Length;
+    Cursor      = RangeBase;
+
+    for (Cut = 0; Cut < *Count; Cut++) {
+      if ((Map[Cut].HobOption != AddMem) || (Map[Cut].ResourceType != MEM_RES)) {
+        continue;
+      }
+
+      if ((Map[Cut].Address + Map[Cut].Length <= Cursor) ||
+          (Map[Cut].Address >= RangeEnd))
+      {
+        continue;
+      }
+
+      if (Map[Cut].Address > Cursor) {
+        Region.Address = Cursor;
+        Region.Length  = Map[Cut].Address - Cursor;
+        if (Write < MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT - 1) {
+          mResolvedMemoryMap[Write++] = Region;
+        }
+      }
+
+      if (Map[Cut].Address + Map[Cut].Length > Cursor) {
+        Cursor = Map[Cut].Address + Map[Cut].Length;
+      }
+    }
+
+    if (Cursor < RangeEnd) {
+      Region.Address = Cursor;
+      Region.Length  = RangeEnd - Cursor;
+      if (Write < MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT - 1) {
+        mResolvedMemoryMap[Write++] = Region;
+      }
+    }
+  }
+
+  *Count = Write;
+}
+
 ARM_MEMORY_REGION_DESCRIPTOR_EX *
 GetPlatformMemoryMap (
   VOID
@@ -458,12 +576,17 @@ GetPlatformMemoryMap (
                             "DFPS Data");
 
   //
+  // Drop duplicates and take the reserved ranges out of the allocatable ones.
+  //
+  SunfishResolveOverlaps (mSunfishMemoryMap, &OutIndex);
+
+  //
   // Whatever was not copied stays zero, and the caller loops on Length == 0.
   //
   while (OutIndex < MAX_ARM_MEMORY_REGION_DESCRIPTOR_COUNT) {
-    ZeroMem (&mSunfishMemoryMap[OutIndex], sizeof (mSunfishMemoryMap[OutIndex]));
+    ZeroMem (&mResolvedMemoryMap[OutIndex], sizeof (mResolvedMemoryMap[OutIndex]));
     OutIndex++;
   }
 
-  return mSunfishMemoryMap;
+  return mResolvedMemoryMap;
 }
