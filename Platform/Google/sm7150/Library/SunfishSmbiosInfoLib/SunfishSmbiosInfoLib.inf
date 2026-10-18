@@ -1,0 +1,31 @@
+## @file
+#  Pixel 4a (sunfish) SMBIOS information.
+#
+#  Overrides the shared SM7150 SMBIOS library
+#  (Silicon/Qualcomm/sm7150/Library/SOCSmbiosInfoLib) with device names
+#  specific to the Google Pixel 4a (Snapdragon 730G).
+#
+#  Selected from Platform/Google/sm7150/sunfish.dsc via [LibraryClasses].
+#
+#  Copyright (c) 2026, sunfish port contributors.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SunfishSmbiosInfoLib
+  FILE_GUID                      = 8d2f5b03-6e49-4c17-a038-4f9b2c7d5e61
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SOCSmbiosInfoLib
+
+[Sources]
+  SunfishSmbiosInfoLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  Silicon/Qualcomm/QcomPkg/QcomPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib

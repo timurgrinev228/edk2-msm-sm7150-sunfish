@@ -13,6 +13,10 @@
 
 !include Platform/Qualcomm/sm7150/sm7150.dsc
 
+[LibraryClasses.common]
+  PlatformMemoryMapLib|Platform/Google/sm7150/Library/SunfishMemoryMapLib/SunfishMemoryMapLib.inf
+  SOCSmbiosInfoLib|Platform/Google/sm7150/Library/SunfishSmbiosInfoLib/SunfishSmbiosInfoLib.inf
+
 [BuildOptions.common]
   GCC:*_*_AARCH64_CC_FLAGS = -DENABLE_SIMPLE_INIT -DENABLE_LINUX_SIMPLE_MASS_STORAGE
 

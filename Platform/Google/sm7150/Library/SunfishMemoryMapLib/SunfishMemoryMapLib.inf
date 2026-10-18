@@ -1,0 +1,36 @@
+## @file
+#  Pixel 4a (sunfish) memory map.
+#
+#  Wraps the shared SM7150 table (Silicon/Qualcomm/sm7150/Library/
+#  PlatformMemoryMapLib) and corrects the two defects that only apply to sunfish:
+#  HLOS 3 overlapping SMEM by 128 KiB, and the duplicated "HLOS 6" region name.
+#  See the source file for the details and for the DTB evidence.
+#
+#  Selected from Platform/Google/sm7150/sunfish.dsc via [LibraryClasses].
+#
+#  Copyright (c) 2026, sunfish port contributors.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SunfishMemoryMapLib
+  FILE_GUID                      = 7c1e4a92-5d38-4b06-9f27-3e8a1d6b4c50
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PlatformMemoryMapLib
+
+[Sources]
+  SunfishMemoryMapLib.c
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  Silicon/Qualcomm/QcomPkg/QcomPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
