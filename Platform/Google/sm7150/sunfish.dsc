@@ -32,11 +32,20 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Pixel 4a"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"sunfish"
 
-  # ARMv8 Generic Timer uses PPI interrupts (not SPI)
-  # PPI 0: EL2 Virtual Timer (used by UEFI at EL2)
-  # PPI 1: EL2 Hypervisor Timer
-  # PPI 2: EL1 Non-Secure Physical Timer
-  # PPI 3: EL1 Secure Physical Timer
-  gArmTokenSpaceGuid.PcdArmArchTimerSecIntrNum|3
-  gArmTokenSpaceGuid.PcdArmArchTimerIntrNum|2
-  gArmTokenSpaceGuid.PcdArmArchTimerVirtIntrNum|0
+  # ARM generic timer PPIs (GIC INTIDs, not PPI indices: ArmGicDxe registers
+  # the number as an INTID, and a DT "GIC_PPI n" cell means INTID n + 16).
+  #
+  # sm7150.dtsi lists them in the arm,armv8-timer order
+  # (secure phys, non-secure phys, virtual, hypervisor):
+  #
+  #     GIC_PPI 1, GIC_PPI 2, GIC_PPI 3, GIC_PPI 0
+  #     -> INTID 17, 18, 19, 16
+  #
+  # Qualcomm does not use the architecturally assigned PPIs 13/14/11/10 here,
+  # which is why sdm845/msm8998 set 17/18 as well.  The values that were here
+  # (3/2/0) were raw PPI numbers in a different order, i.e. SGIs 0-3: the
+  # timer handler would never have fired.
+  gArmTokenSpaceGuid.PcdArmArchTimerSecIntrNum|17
+  gArmTokenSpaceGuid.PcdArmArchTimerIntrNum|18
+  gArmTokenSpaceGuid.PcdArmArchTimerVirtIntrNum|19
+  gArmTokenSpaceGuid.PcdArmArchTimerHypIntrNum|16
